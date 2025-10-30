@@ -11,6 +11,10 @@ constexpr int HEIGHT = 240;
 constexpr float PI = 3.141592f;
 float TICK_DURATION = 1.0f / 60.0f;
 
+inline float toRads(float degrees) {
+	return degrees * (PI / 180);
+}
+
 enum GravityType {
 	VECTOR,
 	RADIAL,
@@ -39,7 +43,7 @@ static float random() {
 
 typedef enum {
 	NONE,
-	SAND
+	DUST
 } ParticleType;
 
 typedef struct {
@@ -52,20 +56,22 @@ typedef ParticleState (*area_t)[WIDTH];
 
 class ParticleProperties {
 public:
-	float mass = 0;
-	olc::Pixel colour = olc::Pixel(0, 0, 0);
+	float mass;
+	float frictionCoeff;
+	olc::Pixel colour;
 };
 
-class ParticleSand : public ParticleProperties {
+class ParticleDust : public ParticleProperties {
 public:
-	ParticleSand() {
-		this->mass = 1.0;
-		this->colour = olc::Pixel(255, 255, 0);
+	ParticleDust() {
+		this->mass = 0.2f;
+		this->frictionCoeff = 0.5f;
+		this->colour = olc::Pixel(0xff, 0xe0, 0xa0);
 	}
 };
 
 static std::map<ParticleType, ParticleProperties> propertyLookup {
-	{ParticleType::SAND, ParticleSand()}
+	{ParticleType::DUST, ParticleDust()}
 };
 
 class Simulation {
@@ -91,15 +97,16 @@ public:
 	}
 
 	void updatePhysicalParticle(olc::vi2d pos) {
-		ParticleState& data = this->area[pos.y][pos.x];
-		olc::vf2d* velocity = &data.velocity;
+		ParticleState& particle = this->area[pos.y][pos.x];
+		olc::vf2d* velocity = &particle.velocity;
 		
 		olc::vf2d localGravity = getLocalGravity(pos);
 		
-		*velocity += localGravity * propertyLookup[data.type].mass;
-		olc::vf2d* delta = &data.delta;
+		*velocity += localGravity * propertyLookup[particle.type].mass;
+		olc::vf2d* delta = &particle.delta;
 		*delta += *velocity;
 		olc::vf2d toMove = (olc::vi2d) *delta;
+
 		if (toMove.mag() > 0) {
 			*delta -= toMove;
 
@@ -107,8 +114,7 @@ public:
 
 			if (!inBounds(initial)) {
 				clip(initial);
-				*delta *= 0;
-				*velocity *= 0;
+				handleFriction(particle);
 				if (initial == pos) return;
 			}
 			if (get(initial)->type == ParticleType::NONE) {
@@ -117,38 +123,43 @@ public:
 				return;
 			}
 
-			*delta *= 0;
-			*velocity *= 0;
+			handleFriction(particle);
 
+			olc::vf2d normal = toMove.norm() * -1;
+			olc::vf2d normalPolar = normal.polar();
 			while (toMove.mag() >= 1) {
 				olc::vi2d newPos = pos + toMove;
 				clip(newPos);
 				if (get(newPos)->type == ParticleType::NONE) {
+					*velocity *= 0;
 					*get(newPos) = *get(pos);
 					resetParticle(pos);
 					return;
 				}
-				toMove -= toMove.norm();
-
-				olc::vi2d next = pos + toMove;
-				olc::vf2d nextDelta = ((olc::vf2d) (newPos - next)).polar();
-				nextDelta.x += 0.5;
-				for (float angle = 0.25f * PI; angle > 0; angle -= 0.25 * PI) {
-					olc::vf2d nextDeltaCheck = nextDelta;
-					if (random() < 0.5) {
-						nextDeltaCheck.y += angle;
-					} else {
-						nextDeltaCheck.y -= angle;
+				float slideAngle = 90;
+				olc::vf2d centre = olc::vf2d((float) newPos.x + 0.5, (float) newPos.y + 0.5);
+				while (slideAngle > 20) {
+					bool flipped = random() < 0.5;
+					for (int i = 0; i < 2; i++) {
+						olc::vf2d angled = olc::vf2d(1, normalPolar.y + toRads(flipped ? slideAngle : -slideAngle)).cart();
+						olc::vi2d check = centre + angled;
+						clip(check);
+						if (get(check)->type == ParticleType::NONE) {
+							*get(check) = *get(pos);
+							resetParticle(pos);
+							// We only want the velocity along the vector the particle deflects
+							float component = (((olc::vf2d) newPos + normal - check)).norm().dot(normal);
+							*velocity *= component;
+							return;
+						}
+						flipped = !flipped;
 					}
-					olc::vi2d angularCheck = next + nextDeltaCheck.cart();
-					clip(angularCheck);
-					if (get(angularCheck)->type == ParticleType::NONE) {
-						*get(angularCheck) = *get(pos);
-						resetParticle(pos);
-						return;
-					}
+					slideAngle -= 90;
 				}
+				toMove -= toMove.norm();
 			}
+			// It's just not able to move
+			*velocity *= 0;
 		}
 	}
 
@@ -159,9 +170,9 @@ public:
 			break;
 		case GravityType::RADIAL:
 		{
-			olc::vi2d toCentre = olc::vi2d(160, 120) - pos;
+			olc::vf2d toCentre = olc::vi2d(WIDTH / 2, HEIGHT / 2) - pos;
 			if (toCentre.mag() == 0) return olc::vf2d(0, 0);
-			else return ((olc::vf2d)toCentre).norm() / 20;
+			else return toCentre.norm() * std::min(0.05f, 20 / toCentre.mag());
 			break;
 		}
 		case GravityType::OFF:
@@ -181,9 +192,14 @@ public:
 		particle->delta = olc::vf2d(0, 0);
 	}
 
-	void clip(olc::vi2d &pos) {
+	void clip(olc::vi2d& pos) {
 		pos.x = std::min(std::max(pos.x, 0), WIDTH - 1);
 		pos.y = std::min(std::max(pos.y, 0), HEIGHT - 1);
+	}
+
+	void handleFriction(ParticleState& particle) {
+		ParticleProperties properties = propertyLookup[particle.type];
+		particle.velocity *= properties.frictionCoeff;
 	}
 };
 
@@ -207,7 +223,7 @@ public:
 		}
 	}
 
-	olc::Pixel calculatePixel(ParticleState data) {
+	olc::Pixel calculatePixel(ParticleState& data) {
 		ParticleProperties properties = propertyLookup[data.type];
 		return properties.colour;
 	}
@@ -249,7 +265,7 @@ private:
 				ParticleState* particle = &this->area[y][x];
 				if (particle->type == ParticleType::NONE) {
 					this->sim.resetParticle(olc::vi2d(x, y));
-					particle->type = ParticleType::SAND;
+					particle->type = ParticleType::DUST;
 				}
 			}
 			if (GetKey(olc::Key::G).bPressed) {
@@ -263,8 +279,16 @@ private:
 					std::cout << "Gravity: Off" << std::endl;
 					break;
 				case GravityType::OFF:
+				default:
 					CONFIG.gravType = GravityType::VECTOR;
 					std::cout << "Gravity: Vector" << std::endl;
+				}
+			}
+			if (GetKey(olc::Key::C).bPressed) {
+				for (int y = 0; y < HEIGHT; y++) {
+					for (int x = 0; x < WIDTH; x++) {
+						this->sim.resetParticle(olc::vi2d(x, y));
+					}
 				}
 			}
 		}
