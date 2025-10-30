@@ -10,7 +10,17 @@ constexpr int WIDTH = 320;
 constexpr int HEIGHT = 240;
 constexpr float PI = 3.141592f;
 float TICK_DURATION = 1.0f / 60.0f;
-olc::vf2d GRAVITY = olc::vf2d(0, 0.05f);
+
+enum GravityType {
+	VECTOR,
+	RADIAL,
+	OFF
+};
+
+struct {
+	GravityType gravType = VECTOR;
+	olc::vf2d gravVec = olc::vf2d(0, 0.05f);
+} CONFIG;
 
 static bool inBounds(int x, int y) {
 	return x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT;
@@ -78,16 +88,15 @@ public:
 		for (olc::vi2d& pos : toUpdate) {
 			updatePhysicalParticle(pos);
 		}
-
-		olc::vf2d polar = GRAVITY.polar();
-		polar.y += 0.01;
-		GRAVITY = polar.cart();
 	}
 
 	void updatePhysicalParticle(olc::vi2d pos) {
 		ParticleState& data = this->area[pos.y][pos.x];
 		olc::vf2d* velocity = &data.velocity;
-		*velocity += GRAVITY * propertyLookup[data.type].mass;
+		
+		olc::vf2d localGravity = getLocalGravity(pos);
+		
+		*velocity += localGravity * propertyLookup[data.type].mass;
 		olc::vf2d* delta = &data.delta;
 		*delta += *velocity;
 		olc::vf2d toMove = (olc::vi2d) *delta;
@@ -140,6 +149,24 @@ public:
 					}
 				}
 			}
+		}
+	}
+
+	olc::vf2d getLocalGravity(olc::vi2d pos) {
+		switch (CONFIG.gravType) {
+		case GravityType::VECTOR:
+			return CONFIG.gravVec;
+			break;
+		case GravityType::RADIAL:
+		{
+			olc::vi2d toCentre = olc::vi2d(160, 120) - pos;
+			if (toCentre.mag() == 0) return olc::vf2d(0, 0);
+			else return ((olc::vf2d)toCentre).norm() / 20;
+			break;
+		}
+		case GravityType::OFF:
+		default:
+			return olc::vf2d(0, 0);
 		}
 	}
 
@@ -223,6 +250,21 @@ private:
 				if (particle->type == ParticleType::NONE) {
 					this->sim.resetParticle(olc::vi2d(x, y));
 					particle->type = ParticleType::SAND;
+				}
+			}
+			if (GetKey(olc::Key::G).bPressed) {
+				switch (CONFIG.gravType) {
+				case GravityType::VECTOR:
+					CONFIG.gravType = GravityType::RADIAL;
+					std::cout << "Gravity: Radial" << std::endl;
+					break;
+				case GravityType::RADIAL:
+					CONFIG.gravType = GravityType::OFF;
+					std::cout << "Gravity: Off" << std::endl;
+					break;
+				case GravityType::OFF:
+					CONFIG.gravType = GravityType::VECTOR;
+					std::cout << "Gravity: Vector" << std::endl;
 				}
 			}
 		}
