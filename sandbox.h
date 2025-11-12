@@ -6,8 +6,9 @@
 
 static constexpr int WIDTH = 320;
 static constexpr int HEIGHT = 240;
+static constexpr int PIX_SIZE = 4;
 static constexpr float PI = 3.141592f;
-static float TICK_DURATION = 1.0f / 60.0f;
+static constexpr float TICK_DURATION = 1.0f / 60.0f;
 
 enum GravityType {
 	VECTOR,

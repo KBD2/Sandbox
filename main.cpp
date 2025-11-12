@@ -17,6 +17,7 @@ class Sandbox : public olc::PixelGameEngine {
 	float timeTillUpdate = 0;
 	Simulation sim = Simulation(this->area);
 	Renderer renderer = Renderer(this->area);
+	bool ticking = true;
 
 public:
 	Sandbox() {
@@ -33,7 +34,9 @@ public:
 		this->timeTillUpdate -= fElapsedTime;
 		if (this->timeTillUpdate <= 0) {
 			this->timeTillUpdate = TICK_DURATION + this->timeTillUpdate;
-			this->sim.tick();
+			if (ticking) {
+				this->sim.tick();
+			}
 		}
 		handleInput();
 		return true;
@@ -83,13 +86,20 @@ private:
 					}
 				}
 			}
+			if (GetKey(olc::Key::SPACE).bPressed) {
+				this->ticking = !this->ticking;
+			}
+			if (GetKey(olc::Key::F).bPressed) {
+				this->ticking = false;
+				this->sim.tick();
+			}
 		}
 	}
 };
 
 int main() {
 	Sandbox game;
-	if (game.Construct(WIDTH, HEIGHT, 4, 4)) {
+	if (game.Construct(WIDTH, HEIGHT, PIX_SIZE, PIX_SIZE)) {
 		game.Start();
 	}
 	return 0;

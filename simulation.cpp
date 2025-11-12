@@ -5,9 +5,14 @@
 #include "particles.h"
 #include "simulation.h"
 
-const olc::vf2d deltas[][2] = {
+const olc::vf2d deltasSolid[][2] = {
+	{olc::vf2d(0, 1).polar(), olc::vf2d(0, -1).polar()}
+};
+
+const olc::vf2d deltasLiquid[][2] = {
 	{olc::vf2d(0, 1).polar(), olc::vf2d(0, -1).polar()},
 	{olc::vf2d(-1, 1).polar(), olc::vf2d(-1, -1).polar()},
+	{olc::vf2d(0, 2).polar(), olc::vf2d(0, -2).polar()},
 	{olc::vf2d(-1, 2).polar(), olc::vf2d(-1, -2).polar()}
 };
 
@@ -22,10 +27,18 @@ void handleFriction(ParticleState& particle) {
 }
 
 Simulation::Simulation(area_t area) {
+	this->updated = new bool[HEIGHT][WIDTH];
 	this->area = area;
 }
 
 void Simulation::tick() {
+
+	for (int y = 0; y < HEIGHT; y++) {
+		for (int x = 0; x < WIDTH; x++) {
+			this->updated[y][x] = false;
+		}
+	}
+
 	std::vector<olc::vi2d> toUpdate = std::vector<olc::vi2d>();
 	for (int y = 0; y < HEIGHT; y++) {
 		for (int x = 0; x < WIDTH; x++) {
@@ -35,8 +48,42 @@ void Simulation::tick() {
 		}
 	}
 	for (olc::vi2d& pos : toUpdate) {
+		if (this->updated[pos.y][pos.x]) continue;
+		ParticleState& particle = this->area[pos.y][pos.x];
+		ParticleProperties& properties = propertyLookup[particle.type];
 		updatePhysicalParticle(pos);
 	}
+}
+
+bool Simulation::tryPlace(olc::vi2d pos, olc::vi2d newPos) {
+	ParticleState* state = get(pos);
+	ParticleProperties& props = propertyLookup[state->type];
+
+	if (inBounds(newPos)) {
+		ParticleState* newState = get(newPos);
+		bool canSwap = false;
+		if (newState->type == ParticleType::NONE) canSwap = true;
+		else {
+			ParticleProperties& newProps = propertyLookup[newState->type];
+			if (props.state == State::SOLID && newProps.state == State::LIQUID) {
+				canSwap = true;
+			}
+		}
+		if (canSwap) {
+			if (newState->type == ParticleType::NONE) {
+				*newState = *state;
+				resetParticle(pos);
+			} else {
+				ParticleState temp = *newState;
+				*newState = *state;
+				*state = temp;
+			}
+			this->updated[newPos.y][newPos.x] = true;
+			return true;
+		}
+		return false;
+	}
+	return false;
 }
 
 void Simulation::updatePhysicalParticle(olc::vi2d pos) {
@@ -51,25 +98,12 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 	*delta += *velocity;
 	olc::vf2d toMove = (olc::vi2d) *delta;
 
-	// TODO: Better liquid spreading, currently only spreads sideways when gravity would move it down
-	/*if (properties.state == State::LIQUID && localGravity.mag() > 0) {
-		olc::vf2d dir = localGravity.norm().polar();
-		olc::vf2d brownian = olc::vf2d(0, random() * 0.2 - 0.1).polar();
-		brownian.y += dir.y;
-		std::cout << brownian.cart() << std::endl;
-		*velocity += brownian.cart();
-	}*/
-
 	if (toMove.mag() > 0) {
 		*delta -= toMove;
 
 		olc::vi2d initial = pos + toMove;
 
-		if (inBounds(initial) && get(initial)->type == ParticleType::NONE) {
-			*get(initial) = *get(pos);
-			resetParticle(pos);
-			return;
-		}
+		if (tryPlace(pos, initial)) return;
 
 		handleFriction(particle);
 
@@ -78,15 +112,12 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 		while (toMove.mag() >= 1) {
 			olc::vi2d newPos = pos + toMove;
 
-			if (inBounds(newPos) && get(newPos)->type == ParticleType::NONE) {
-				*get(newPos) = *get(pos);
-				resetParticle(pos);
-				return;
-			}
+			if (tryPlace(pos, newPos)) return;
 
 			olc::vf2d centre = olc::vf2d((float) newPos.x + 0.5, (float) newPos.y + 0.5);
 
-			int layers = properties.state == State::SOLID ? 1 : 3;
+			int layers = properties.state == State::SOLID ? 1 : 4;
+			auto deltas = properties.state == State::SOLID ? deltasSolid : deltasLiquid;
 			for (int i = 0; i < layers; i++) {
 				const olc::vf2d* layer = deltas[i];
 				bool choice = random() < 0.5;
@@ -95,11 +126,7 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 					choice = !choice;
 					delta.y += dir.y; // Transform to global
 					olc::vi2d check = centre + delta.cart();
-					if (inBounds(check) && get(check)->type == ParticleType::NONE) {
-						*get(check) = *get(pos);
-						resetParticle(pos);
-						return;
-					}
+					if (tryPlace(pos, check)) return;
 				}
 			}
 			toMove -= toMove.norm();
