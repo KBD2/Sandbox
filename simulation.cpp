@@ -12,8 +12,6 @@ const olc::vf2d deltasSolid[][2] = {
 const olc::vf2d deltasLiquid[][2] = {
 	{olc::vf2d(0, 1).polar(), olc::vf2d(0, -1).polar()},
 	{olc::vf2d(-1, 1).polar(), olc::vf2d(-1, -1).polar()},
-	{olc::vf2d(0, 2).polar(), olc::vf2d(0, -2).polar()},
-	{olc::vf2d(-1, 2).polar(), olc::vf2d(-1, -2).polar()}
 };
 
 void clip(olc::vi2d& pos) {
@@ -116,7 +114,7 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 
 			olc::vf2d centre = olc::vf2d((float) newPos.x + 0.5, (float) newPos.y + 0.5);
 
-			int layers = properties.state == State::SOLID ? 1 : 4;
+			int layers = properties.state == State::SOLID ? 1 : 2;
 			auto deltas = properties.state == State::SOLID ? deltasSolid : deltasLiquid;
 			for (int i = 0; i < layers; i++) {
 				const olc::vf2d* layer = deltas[i];
@@ -164,4 +162,5 @@ void Simulation::resetParticle(olc::vi2d pos) {
 	particle->type = ParticleType::NONE;
 	particle->velocity = olc::vf2d(0, 0);
 	particle->delta = olc::vf2d(0, 0);
+	particle->deco = olc::Pixel(0, 0, 0, 0);
 }

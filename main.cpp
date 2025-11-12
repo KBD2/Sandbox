@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdlib>
 
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
@@ -22,6 +23,7 @@ class Sandbox : public olc::PixelGameEngine {
 public:
 	Sandbox() {
 		this->sAppName = "Sandbox";
+		std::srand(time(NULL));
 	}
 
 	bool OnUserCreate() override {
@@ -29,7 +31,8 @@ public:
 	}
 
 	bool OnUserUpdate(float fElapsedTime) override {
-		this->renderer.render(this);
+		this->renderer.renderArea(this);
+		this->renderer.renderUI(this);
 		bool update = false;
 		this->timeTillUpdate -= fElapsedTime;
 		if (this->timeTillUpdate <= 0) {
@@ -45,22 +48,27 @@ public:
 private:
 	void handleInput() {
 		if (IsFocused()) {
-			if (GetMouse(0).bHeld) {
-				int x = GetMouseX();
-				int y = GetMouseY();
-				ParticleState* particle = &this->area[y][x];
-				if (particle->type == ParticleType::NONE) {
-					this->sim.resetParticle(olc::vi2d(x, y));
-					particle->type = ParticleType::DUST;
+			int x = GetMouseX();
+			int y = GetMouseY();
+			if (inBounds(x, y)) {
+				if (GetMouse(0).bHeld) {
+					ParticleState* particle = &this->area[y][x];
+					if (particle->type == ParticleType::NONE) {
+						this->sim.resetParticle(olc::vi2d(x, y));
+						particle->type = ParticleType::DUST;
+						if (rand() % 2 == 0) {
+							particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
+						}
+					}
 				}
-			}
-			if (GetMouse(1).bHeld) {
-				int x = GetMouseX();
-				int y = GetMouseY();
-				ParticleState* particle = &this->area[y][x];
-				if (particle->type == ParticleType::NONE) {
-					this->sim.resetParticle(olc::vi2d(x, y));
-					particle->type = ParticleType::WATER;
+				if (GetMouse(1).bHeld) {
+					int x = GetMouseX();
+					int y = GetMouseY();
+					ParticleState* particle = &this->area[y][x];
+					if (particle->type == ParticleType::NONE) {
+						this->sim.resetParticle(olc::vi2d(x, y));
+						particle->type = ParticleType::WATER;
+					}
 				}
 			}
 			if (GetKey(olc::Key::G).bPressed) {
@@ -99,7 +107,7 @@ private:
 
 int main() {
 	Sandbox game;
-	if (game.Construct(WIDTH, HEIGHT, PIX_SIZE, PIX_SIZE)) {
+	if (game.Construct(WIDTH, HEIGHT + 20, PIX_SIZE, PIX_SIZE)) {
 		game.Start();
 	}
 	return 0;

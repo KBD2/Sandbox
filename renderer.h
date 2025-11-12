@@ -9,7 +9,9 @@ class Renderer {
 public:
 	Renderer(area_t area);
 
-	void render(olc::PixelGameEngine* ctx);
+	void renderArea(olc::PixelGameEngine* ctx);
+
+	void renderUI(olc::PixelGameEngine* ctx);
 
 	olc::Pixel calculatePixel(ParticleState& data);
 };

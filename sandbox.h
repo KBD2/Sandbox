@@ -33,6 +33,7 @@ typedef struct {
 	ParticleType type;
 	olc::vf2d velocity;
 	olc::vf2d delta;
+	olc::Pixel deco;
 } ParticleState;
 
 typedef ParticleState(*area_t)[WIDTH];

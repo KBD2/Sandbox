@@ -17,7 +17,6 @@ public:
 	float mass;
 	float frictionCoeff;
 	olc::Pixel colour;
-	olc::Pixel deco;
 };
 
 class ParticleDust : public ParticleProperties {
