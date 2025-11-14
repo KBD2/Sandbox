@@ -11,7 +11,7 @@ public:
 	void resetParticle(olc::vi2d pos);
 
 private:
-	void updatePhysicalParticle(olc::vi2d pos);
+	olc::vi2d updateMovableParticle(olc::vi2d pos);
 	olc::vf2d getLocalGravity(olc::vi2d pos);
 	ParticleState* get(olc::vi2d pos);
 	bool tryPlace(olc::vi2d pos, olc::vi2d newPos);

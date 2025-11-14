@@ -31,5 +31,13 @@ olc::Pixel Renderer::calculatePixel(ParticleState& data) {
 }
 
 void Renderer::renderUI(olc::PixelGameEngine* ctx) {
+	ctx->FillRect(0, HEIGHT, WIDTH, ctx->GetDrawTargetHeight() - HEIGHT + 1, olc::BLANK);
 	ctx->DrawLine(olc::vi2d(0, HEIGHT), olc::vi2d(WIDTH - 1, HEIGHT), olc::GREY);
+	for (auto type : uiCtx.types) {
+		ParticleProperties& properties = propertyLookup[type.type];
+		ctx->FillRect(type.uiPos, olc::vi2d(5, 5), properties.colour);
+		if (type.type == uiCtx.selected) {
+			ctx->DrawRect(olc::vi2d(type.uiPos.x - 1, type.uiPos.y - 1), olc::vi2d(6, 6), olc::RED);
+		}
+	}
 }

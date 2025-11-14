@@ -129,6 +129,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="particles.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="simulation.cpp" />
   </ItemGroup>

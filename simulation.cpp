@@ -48,22 +48,30 @@ void Simulation::tick() {
 	for (olc::vi2d& pos : toUpdate) {
 		if (this->updated[pos.y][pos.x]) continue;
 		ParticleState& particle = this->area[pos.y][pos.x];
-		ParticleProperties& properties = propertyLookup[particle.type];
-		updatePhysicalParticle(pos);
+		ParticleProperties& properties = getProps(particle.type);
+		if (properties.state != State::SOLID) {
+			olc::vi2d placed = updateMovableParticle(pos);
+			if (properties.state == State::LIQUID) {
+				placed = updateMovableParticle(placed);
+			} else if (properties.state == State::GAS) {
+				placed = updateMovableParticle(placed);
+				placed = updateMovableParticle(placed);
+			}
+		}
 	}
 }
 
 bool Simulation::tryPlace(olc::vi2d pos, olc::vi2d newPos) {
 	ParticleState* state = get(pos);
-	ParticleProperties& props = propertyLookup[state->type];
+	ParticleProperties& props = getProps(state->type);
 
 	if (inBounds(newPos)) {
 		ParticleState* newState = get(newPos);
 		bool canSwap = false;
 		if (newState->type == ParticleType::NONE) canSwap = true;
 		else {
-			ParticleProperties& newProps = propertyLookup[newState->type];
-			if (props.state == State::SOLID && newProps.state == State::LIQUID) {
+			ParticleProperties& newProps = getProps(newState->type);
+			if (props.state < newProps.state) {
 				canSwap = true;
 			}
 		}
@@ -84,14 +92,14 @@ bool Simulation::tryPlace(olc::vi2d pos, olc::vi2d newPos) {
 	return false;
 }
 
-void Simulation::updatePhysicalParticle(olc::vi2d pos) {
+olc::vi2d Simulation::updateMovableParticle(olc::vi2d pos) {
 	ParticleState& particle = this->area[pos.y][pos.x];
-	ParticleProperties& properties = propertyLookup[particle.type];
+	ParticleProperties& properties = getProps(particle.type);
 	olc::vf2d* velocity = &particle.velocity;
 
 	olc::vf2d localGravity = getLocalGravity(pos);
 
-	*velocity += localGravity * propertyLookup[particle.type].mass;
+	*velocity += localGravity * getProps(particle.type).mass;
 	olc::vf2d* delta = &particle.delta;
 	*delta += *velocity;
 	olc::vf2d toMove = (olc::vi2d) *delta;
@@ -101,7 +109,7 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 
 		olc::vi2d initial = pos + toMove;
 
-		if (tryPlace(pos, initial)) return;
+		if (tryPlace(pos, initial)) return initial;
 
 		handleFriction(particle);
 
@@ -110,13 +118,14 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 		while (toMove.mag() >= 1) {
 			olc::vi2d newPos = pos + toMove;
 
-			if (tryPlace(pos, newPos)) return;
+			if (tryPlace(pos, newPos)) return newPos;
 
 			olc::vf2d centre = olc::vf2d((float) newPos.x + 0.5, (float) newPos.y + 0.5);
 
-			int layers = properties.state == State::SOLID ? 1 : 2;
-			auto deltas = properties.state == State::SOLID ? deltasSolid : deltasLiquid;
+			int layers = properties.state == State::POWDER ? 1 : 2;
+			auto deltas = properties.state == State::POWDER ? deltasSolid : deltasLiquid;
 			for (int i = 0; i < layers; i++) {
+				if (rand() % 5 == 0) continue;
 				const olc::vf2d* layer = deltas[i];
 				bool choice = random() < 0.5;
 				for (int i = 0; i < 2; i++) {
@@ -124,7 +133,7 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 					choice = !choice;
 					delta.y += dir.y; // Transform to global
 					olc::vi2d check = centre + delta.cart();
-					if (tryPlace(pos, check)) return;
+					if (tryPlace(pos, check)) return check;
 				}
 			}
 			toMove -= toMove.norm();
@@ -133,6 +142,8 @@ void Simulation::updatePhysicalParticle(olc::vi2d pos) {
 		*velocity *= 0;
 		*delta *= 0;
 	}
+
+	return pos;
 }
 
 olc::vf2d Simulation::getLocalGravity(olc::vi2d pos) {

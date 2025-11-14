@@ -7,6 +7,7 @@
 
 enum State {
 	SOLID,
+	POWDER,
 	LIQUID,
 	GAS
 };
@@ -22,7 +23,7 @@ public:
 class ParticleDust : public ParticleProperties {
 public:
 	ParticleDust() {
-		this->state = State::SOLID;
+		this->state = State::POWDER;
 		this->mass = 0.4f;
 		this->frictionCoeff = 0.5f;
 		this->colour = olc::Pixel(0xff, 0xe0, 0xa0);
@@ -39,7 +40,16 @@ public:
 	}
 };
 
-static std::map<ParticleType, ParticleProperties> propertyLookup {
-	{ParticleType::DUST, ParticleDust()},
-	{ParticleType::WATER, ParticleWater()}
+class ParticleBrick : public ParticleProperties {
+public:
+	ParticleBrick() {
+		this->state = State::SOLID;
+		this->colour = olc::Pixel(0xaa, 0xaa, 0xaa);
+	}
 };
+
+extern std::map<ParticleType, ParticleProperties> propertyLookup;
+
+inline ParticleProperties& getProps(ParticleType type) {
+	return propertyLookup[type];
+}

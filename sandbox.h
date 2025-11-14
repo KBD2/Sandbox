@@ -1,6 +1,7 @@
 #pragma once
 
 #include <random>
+#include <vector>
 
 #include "olcPixelGameEngine.h"
 
@@ -24,9 +25,10 @@ typedef struct {
 extern Config CONFIG;
 
 typedef enum {
-	NONE,
 	DUST,
-	WATER
+	WATER,
+	BRICK,
+	NONE
 } ParticleType;
 
 typedef struct {
@@ -35,6 +37,18 @@ typedef struct {
 	olc::vf2d delta;
 	olc::Pixel deco;
 } ParticleState;
+
+typedef struct {
+	olc::vi2d uiPos;
+	ParticleType type;
+} UIParticleType;
+
+typedef struct {
+	std::vector<UIParticleType> types;
+	ParticleType selected;
+} UIContext;
+
+extern UIContext uiCtx;
 
 typedef ParticleState(*area_t)[WIDTH];
 

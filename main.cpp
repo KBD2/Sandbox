@@ -7,14 +7,20 @@
 #include "sandbox.h"
 #include "simulation.h"
 #include "renderer.h"
+#include "particles.h"
 
 Config CONFIG = {
 	.gravType = VECTOR,
 	.gravVec = olc::vf2d(0, 0.05f)
 };
 
+UIContext uiCtx = {
+	.types = std::vector<UIParticleType>(),
+	.selected = ParticleType::DUST
+};
+
 class Sandbox : public olc::PixelGameEngine {
-	area_t area = new ParticleState[HEIGHT][WIDTH]{ ParticleType::NONE };
+	area_t area = new ParticleState[HEIGHT][WIDTH];
 	float timeTillUpdate = 0;
 	Simulation sim = Simulation(this->area);
 	Renderer renderer = Renderer(this->area);
@@ -24,6 +30,20 @@ public:
 	Sandbox() {
 		this->sAppName = "Sandbox";
 		std::srand(time(NULL));
+
+		for (int y = 0; y < HEIGHT; y++) {
+			for (int x = 0; x < WIDTH; x++) {
+				this->sim.resetParticle(olc::vi2d(x, y));
+			}
+		}
+
+		for (int type = 0; type < NONE; type++) {
+			UIParticleType uiType = {
+				.uiPos = olc::vi2d(3 + 8 * type, HEIGHT + 4),
+				.type = (ParticleType) type
+			};
+			uiCtx.types.push_back(uiType);
+		}
 	}
 
 	bool OnUserCreate() override {
@@ -55,19 +75,23 @@ private:
 					ParticleState* particle = &this->area[y][x];
 					if (particle->type == ParticleType::NONE) {
 						this->sim.resetParticle(olc::vi2d(x, y));
-						particle->type = ParticleType::DUST;
-						if (rand() % 2 == 0) {
+						particle->type = uiCtx.selected;
+						if (getProps(particle->type).state == State::POWDER && rand() % 2 == 0) {
 							particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
 						}
 					}
 				}
 				if (GetMouse(1).bHeld) {
-					int x = GetMouseX();
-					int y = GetMouseY();
-					ParticleState* particle = &this->area[y][x];
-					if (particle->type == ParticleType::NONE) {
-						this->sim.resetParticle(olc::vi2d(x, y));
-						particle->type = ParticleType::WATER;
+					this->sim.resetParticle(olc::vi2d(x, y));
+				}
+			} else {
+				if (GetMouse(0).bPressed) {
+					for (auto type : uiCtx.types) {
+						int buttonX = type.uiPos.x;
+						int buttonY = type.uiPos.y;
+						if (x >= buttonX && x < buttonX + 5 && y >= buttonY && y < buttonY + 5) {
+							uiCtx.selected = type.type;
+						}
 					}
 				}
 			}
