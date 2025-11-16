@@ -39,7 +39,7 @@ public:
 
 		for (int type = 0; type < NONE; type++) {
 			UIParticleType uiType = {
-				.uiPos = olc::vi2d(3 + 8 * type, HEIGHT + 4),
+				.uiPos = olc::vi2d(3 + 20 * type, HEIGHT + 4),
 				.type = (ParticleType) type
 			};
 			uiCtx.types.push_back(uiType);
@@ -89,7 +89,7 @@ private:
 					for (auto type : uiCtx.types) {
 						int buttonX = type.uiPos.x;
 						int buttonY = type.uiPos.y;
-						if (x >= buttonX && x < buttonX + 5 && y >= buttonY && y < buttonY + 5) {
+						if (x >= buttonX && x < buttonX + 15 && y >= buttonY && y < buttonY + 10) {
 							uiCtx.selected = type.type;
 						}
 					}
