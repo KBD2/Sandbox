@@ -1,4 +1,4 @@
-#pragma warning(disable:4244 26495 26439 26451 26815)
+#pragma warning(disable:4244)
 #pragma region license_and_help
 /*
 	olcPixelGameEngine.h

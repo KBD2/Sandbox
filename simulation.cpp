@@ -5,15 +5,6 @@
 #include "particles.h"
 #include "simulation.h"
 
-const olc::vf2d deltasSolid[][2] = {
-	{olc::vf2d(0, 1).polar(), olc::vf2d(0, -1).polar()}
-};
-
-const olc::vf2d deltasLiquid[][2] = {
-	{olc::vf2d(0, 1).polar(), olc::vf2d(0, -1).polar()},
-	{olc::vf2d(-1, 1).polar(), olc::vf2d(-1, -1).polar()},
-};
-
 void clip(olc::vi2d& pos) {
 	pos.x = std::min(std::max(pos.x, 0), WIDTH - 1);
 	pos.y = std::min(std::max(pos.y, 0), HEIGHT - 1);
@@ -51,17 +42,12 @@ void Simulation::tick() {
 		ParticleProperties& properties = getProps(particle.type);
 		if (properties.state != State::SOLID) {
 			olc::vi2d placed = updateMovableParticle(pos);
-			if (properties.state == State::LIQUID) {
-				placed = updateMovableParticle(placed);
-			} else if (properties.state == State::GAS) {
-				placed = updateMovableParticle(placed);
-				placed = updateMovableParticle(placed);
-			}
 		}
 	}
 }
 
 bool Simulation::tryPlace(olc::vi2d pos, olc::vi2d newPos) {
+	if (pos == newPos) return false;
 	ParticleState* state = get(pos);
 	ParticleProperties& props = getProps(state->type);
 
@@ -116,27 +102,30 @@ olc::vi2d Simulation::updateMovableParticle(olc::vi2d pos) {
 		olc::vf2d dir = toMove.norm().polar();
 
 		while (toMove.mag() >= 1) {
-			olc::vi2d newPos = pos + toMove;
+			toMove -= toMove.norm();
 
-			if (tryPlace(pos, newPos)) return newPos;
+			olc::vi2d nextPos = pos + toMove;
 
-			olc::vf2d centre = olc::vf2d((float) newPos.x + 0.5, (float) newPos.y + 0.5);
+			if (tryPlace(pos, nextPos)) return nextPos;
 
-			int layers = properties.state == State::POWDER ? 1 : 2;
-			auto deltas = properties.state == State::POWDER ? deltasSolid : deltasLiquid;
-			for (int i = 0; i < layers; i++) {
-				if (rand() % 5 == 0) continue;
-				const olc::vf2d* layer = deltas[i];
-				bool choice = random() < 0.5;
+			olc::vf2d centre = olc::vf2d((float) nextPos.x + 0.5, (float) nextPos.y + 0.5);
+
+			int sideSpread = properties.state == State::POWDER ? 45 : 90;
+			for (int angle = 0; angle <= sideSpread; angle += 5) {
+				bool choice = rand() % 2 == 0;
 				for (int i = 0; i < 2; i++) {
-					olc::vf2d delta = choice ? layer[1] : layer[0];
+					if (rand() % 5 == 0) continue; // Makes it not so uniform, stops some weird behaviour
+					olc::vf2d sideDelta = olc::vf2d(0.8f, dir.y + toRads(choice ? angle : -angle));
+					olc::vi2d check = centre + sideDelta.cart();
+					if (tryPlace(pos, check)) {
+						olc::vf2d velocityPolar = (*velocity).polar();
+						velocityPolar.y = sideDelta.polar().y;
+						*velocity = velocityPolar.cart();
+						return check;
+					}
 					choice = !choice;
-					delta.y += dir.y; // Transform to global
-					olc::vi2d check = centre + delta.cart();
-					if (tryPlace(pos, check)) return check;
 				}
 			}
-			toMove -= toMove.norm();
 		}
 		// It's just not able to move
 		*velocity *= 0;

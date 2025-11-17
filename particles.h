@@ -39,7 +39,7 @@ public:
 		this->name = "WATR";
 		this->state = State::LIQUID;
 		this->mass = 1;
-		this->frictionCoeff = 0.0f;
+		this->frictionCoeff = 0.99f;
 		this->colour = olc::Pixel(0x00, 0x00, 0xff);
 	}
 };

@@ -67,24 +67,48 @@ public:
 
 private:
 	void handleInput() {
+		static int lastX = -1;
+		static int lastY = -1;
 		if (IsFocused()) {
 			int x = GetMouseX();
 			int y = GetMouseY();
 			if (inBounds(x, y)) {
 				if (GetMouse(0).bHeld) {
-					ParticleState* particle = &this->area[y][x];
-					if (particle->type == ParticleType::NONE) {
-						this->sim.resetParticle(olc::vi2d(x, y));
-						particle->type = uiCtx.selected;
-						if (getProps(particle->type).state == State::POWDER && rand() % 2 == 0) {
-							particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
+					if (lastX != -1) {
+
+						int dx = x - lastX;
+						int dy = y - lastY;
+
+						float length = std::max(1.0f, std::sqrtf(std::pow(dx, 2) + std::pow(dy, 2)));
+
+						float mx = (float)dx / length;
+						float my = (float)dy / length;
+
+						for (int t = 0; t < length; t++) {
+							int lx = (float)lastX + mx * t;
+							int ly = (float)lastY + my * t;
+							if (inBounds(lx, ly)) {
+								ParticleState* particle = &this->area[ly][lx];
+								if (particle->type == ParticleType::NONE) {
+									this->sim.resetParticle(olc::vi2d(lx, ly));
+									particle->type = uiCtx.selected;
+									if (getProps(particle->type).state == State::POWDER && rand() % 2 == 0) {
+										particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
+									}
+								}
+							}
 						}
 					}
+					lastX = x;
+					lastY = y;
+				} else {
+					lastX = -1;
 				}
 				if (GetMouse(1).bHeld) {
 					this->sim.resetParticle(olc::vi2d(x, y));
 				}
 			} else {
+				lastX = -1;
 				if (GetMouse(0).bPressed) {
 					for (auto type : uiCtx.types) {
 						int buttonX = type.uiPos.x;
