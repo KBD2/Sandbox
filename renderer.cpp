@@ -18,24 +18,38 @@ void Renderer::renderArea(olc::PixelGameEngine* ctx) {
 	}
 }
 
-olc::Pixel Renderer::calculatePixel(ParticleState& data) {
-	ParticleProperties& properties = propertyLookup[data.type];
-	olc::Pixel& colour = properties.colour;
-	olc::Pixel& deco = data.deco;
+uint8_t lerpCompAlpha(uint8_t a, uint8_t b, uint8_t alpha) {
+	return (uint32_t)b * alpha / 255 + (uint32_t)a * (255 - alpha) / 255;
+}
+
+olc::Pixel lerpPixel(olc::Pixel a, olc::Pixel b, float t) {
+	uint8_t tScaled = 255 * std::max(0.0f, std::min(1.0f, t));
+	olc::Pixel composited;
+	composited.a = lerpCompAlpha(a.a, b.a, tScaled);
+	composited.r = lerpCompAlpha(a.r, b.r, tScaled);
+	composited.g = lerpCompAlpha(a.g, b.g, tScaled);
+	composited.b = lerpCompAlpha(a.b, b.b, tScaled);
+	return composited;
+}
+
+olc::Pixel Renderer::calculatePixel(ParticleState& state) {
+	std::shared_ptr<ParticleProperties> properties = propertyLookup[state.type];
+	olc::Pixel colour = properties->render(state);
+	olc::Pixel& deco = state.deco;
 	olc::Pixel composited;
 	composited.a = 0xff;
-	composited.r = (uint32_t) deco.r * deco.a / 255 + (uint32_t) colour.r * (255 - deco.a) / 255;
-	composited.g = (uint32_t) deco.g * deco.a / 255 + (uint32_t) colour.g * (255 - deco.a) / 255;
-	composited.b = (uint32_t) deco.b * deco.a / 255 + (uint32_t) colour.b * (255 - deco.a) / 255;
+	composited.r = lerpCompAlpha(colour.r, deco.r, deco.a);
+	composited.g = lerpCompAlpha(colour.g, deco.g, deco.a);
+	composited.b = lerpCompAlpha(colour.b, deco.b, deco.a);
 	return composited;
 }
 
 void Renderer::renderUI(olc::PixelGameEngine* ctx) {
 	ctx->FillRect(0, HEIGHT, WIDTH, ctx->GetDrawTargetHeight() - HEIGHT + 1, olc::BLANK);
 	ctx->DrawLine(olc::vi2d(0, HEIGHT), olc::vi2d(WIDTH - 1, HEIGHT), olc::GREY);
-	for (auto type : uiCtx.types) {
-		ParticleProperties& properties = propertyLookup[type.type];
-		ctx->FillRect(type.uiPos, olc::vi2d(15, 10), properties.colour);
+	for (auto& type : uiCtx.types) {
+		std::shared_ptr<ParticleProperties> properties = propertyLookup[type.type];
+		ctx->FillRect(type.uiPos, olc::vi2d(15, 10), properties->colour);
 		if (type.type == uiCtx.selected) {
 			ctx->DrawRect(olc::vi2d(type.uiPos.x - 1, type.uiPos.y - 1), olc::vi2d(16, 11), olc::RED);
 		}

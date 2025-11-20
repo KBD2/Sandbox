@@ -5,9 +5,9 @@
 
 #include "olcPixelGameEngine.h"
 
-static constexpr int WIDTH = 192;
-static constexpr int HEIGHT = 144;
-static constexpr int PIX_SIZE = 4;
+static constexpr int WIDTH = 320;
+static constexpr int HEIGHT = 240;
+static constexpr int PIX_SIZE = 3;
 static constexpr float PI = 3.141592f;
 static constexpr float TICK_DURATION = 1.0f / 60.0f;
 
@@ -28,6 +28,7 @@ typedef enum {
 	DUST,
 	WATER,
 	BRICK,
+	ANAR,
 	NONE
 } ParticleType;
 
@@ -36,6 +37,7 @@ typedef struct {
 	olc::vf2d velocity;
 	olc::vf2d delta;
 	olc::Pixel deco;
+	int32_t data[10];
 } ParticleState;
 
 typedef struct {

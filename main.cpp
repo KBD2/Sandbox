@@ -29,7 +29,7 @@ class Sandbox : public olc::PixelGameEngine {
 public:
 	Sandbox() {
 		this->sAppName = "Sandbox";
-		std::srand(time(NULL));
+		std::srand(std::time(NULL));
 
 		for (int y = 0; y < HEIGHT; y++) {
 			for (int x = 0; x < WIDTH; x++) {
@@ -92,7 +92,7 @@ private:
 								if (particle->type == ParticleType::NONE) {
 									this->sim.resetParticle(olc::vi2d(lx, ly));
 									particle->type = uiCtx.selected;
-									if (getProps(particle->type).state == State::POWDER && rand() % 2 == 0) {
+									if (getProps(particle->type)->state == State::POWDER && rand() % 2 == 0) {
 										particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
 									}
 								}
@@ -110,7 +110,7 @@ private:
 			} else {
 				lastX = -1;
 				if (GetMouse(0).bPressed) {
-					for (auto type : uiCtx.types) {
+					for (auto& type : uiCtx.types) {
 						int buttonX = type.uiPos.x;
 						int buttonY = type.uiPos.y;
 						if (x >= buttonX && x < buttonX + 15 && y >= buttonY && y < buttonY + 10) {

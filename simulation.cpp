@@ -11,8 +11,8 @@ void clip(olc::vi2d& pos) {
 }
 
 void handleFriction(ParticleState& particle) {
-	ParticleProperties& properties = propertyLookup[particle.type];
-	particle.velocity *= properties.frictionCoeff;
+	std::shared_ptr<ParticleProperties> properties = propertyLookup[particle.type];
+	particle.velocity *= properties->frictionCoeff;
 }
 
 Simulation::Simulation(area_t area) {
@@ -38,10 +38,11 @@ void Simulation::tick() {
 	}
 	for (olc::vi2d& pos : toUpdate) {
 		if (this->updated[pos.y][pos.x]) continue;
-		ParticleState& particle = this->area[pos.y][pos.x];
-		ParticleProperties& properties = getProps(particle.type);
-		if (properties.state != State::SOLID) {
+		std::unique_ptr<ParticleState> state = std::make_unique<ParticleState>(this->area[pos.y][pos.x]);
+		std::shared_ptr<ParticleProperties> properties = getProps(state->type);
+		if (properties->state != State::SOLID) {
 			olc::vi2d placed = updateMovableParticle(pos);
+			properties->update(this->area[placed.y][placed.x], this->area);
 		}
 	}
 }
@@ -49,15 +50,15 @@ void Simulation::tick() {
 bool Simulation::tryPlace(olc::vi2d pos, olc::vi2d newPos) {
 	if (pos == newPos) return false;
 	ParticleState* state = get(pos);
-	ParticleProperties& props = getProps(state->type);
+	std::shared_ptr<ParticleProperties> props = getProps(state->type);
 
 	if (inBounds(newPos)) {
 		ParticleState* newState = get(newPos);
 		bool canSwap = false;
 		if (newState->type == ParticleType::NONE) canSwap = true;
 		else {
-			ParticleProperties& newProps = getProps(newState->type);
-			if (props.state < newProps.state) {
+			std::shared_ptr<ParticleProperties> newProps = getProps(newState->type);
+			if (props->state < newProps->state) {
 				canSwap = true;
 			}
 		}
@@ -80,15 +81,15 @@ bool Simulation::tryPlace(olc::vi2d pos, olc::vi2d newPos) {
 
 olc::vi2d Simulation::updateMovableParticle(olc::vi2d pos) {
 	ParticleState& particle = this->area[pos.y][pos.x];
-	ParticleProperties& properties = getProps(particle.type);
+	std::shared_ptr<ParticleProperties> properties = getProps(particle.type);
 	olc::vf2d* velocity = &particle.velocity;
 
-	olc::vf2d localGravity = getLocalGravity(pos);
-
-	*velocity += localGravity * getProps(particle.type).mass;
+	*velocity += getLocalGravity(pos) * getProps(particle.type)->mass;
 	olc::vf2d* delta = &particle.delta;
+
 	*delta += *velocity;
-	olc::vf2d toMove = (olc::vi2d) *delta;
+	olc::vf2d toMove = (olc::vi2d)*delta;
+	olc::vf2d norm = toMove.norm();
 
 	if (toMove.mag() > 0) {
 		*delta -= toMove;
@@ -99,19 +100,19 @@ olc::vi2d Simulation::updateMovableParticle(olc::vi2d pos) {
 
 		handleFriction(particle);
 
-		olc::vf2d dir = toMove.norm().polar();
+		olc::vf2d dir = velocity->norm().polar();
 
 		while (toMove.mag() >= 1) {
-			toMove -= toMove.norm();
+			toMove -= norm;
 
 			olc::vi2d nextPos = pos + toMove;
 
 			if (tryPlace(pos, nextPos)) return nextPos;
 
-			olc::vf2d centre = olc::vf2d((float) nextPos.x + 0.5, (float) nextPos.y + 0.5);
+			olc::vf2d centre = olc::vf2d((float)nextPos.x + 0.5, (float)nextPos.y + 0.5);
 
-			int sideSpread = properties.state == State::POWDER ? 45 : 90;
-			for (int angle = 0; angle <= sideSpread; angle += 5) {
+			int sideSpread = properties->state == State::POWDER ? 45 : 90;
+			for (int angle = 45; angle <= sideSpread; angle += 15) {
 				bool choice = rand() % 2 == 0;
 				for (int i = 0; i < 2; i++) {
 					if (rand() % 5 == 0) continue; // Makes it not so uniform, stops some weird behaviour
@@ -163,4 +164,5 @@ void Simulation::resetParticle(olc::vi2d pos) {
 	particle->velocity = olc::vf2d(0, 0);
 	particle->delta = olc::vf2d(0, 0);
 	particle->deco = olc::Pixel(0, 0, 0, 0);
+	std::memset(particle->data, 0, sizeof(particle->data));
 }
