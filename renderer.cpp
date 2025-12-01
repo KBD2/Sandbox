@@ -11,7 +11,7 @@ void Renderer::renderArea(olc::PixelGameEngine* ctx) {
 	for (int y = 0; y < HEIGHT; y++) {
 		for (int x = 0; x < WIDTH; x++) {
 			ParticleState& particle = this->area[y][x];
-			if (particle.type != ParticleType::NONE) {
+			if (particle.type != Type::NONE) {
 				ctx->Draw(x, y, calculatePixel(particle));
 			}
 		}
@@ -45,7 +45,8 @@ olc::Pixel Renderer::calculatePixel(ParticleState& state) {
 }
 
 void Renderer::renderUI(olc::PixelGameEngine* ctx) {
-	ctx->FillRect(0, HEIGHT, WIDTH, ctx->GetDrawTargetHeight() - HEIGHT + 1, olc::BLANK);
+	int windowHeight = ctx->GetDrawTargetHeight();
+	ctx->FillRect(0, HEIGHT, WIDTH, windowHeight - HEIGHT + 1, olc::BLANK);
 	ctx->DrawLine(olc::vi2d(0, HEIGHT), olc::vi2d(WIDTH - 1, HEIGHT), olc::GREY);
 	for (auto& type : uiCtx.types) {
 		std::shared_ptr<ParticleProperties> properties = propertyLookup[type.type];
@@ -53,5 +54,9 @@ void Renderer::renderUI(olc::PixelGameEngine* ctx) {
 		if (type.type == uiCtx.selected) {
 			ctx->DrawRect(olc::vi2d(type.uiPos.x - 1, type.uiPos.y - 1), olc::vi2d(16, 11), olc::RED);
 		}
+	}
+	if (!CONFIG.ticking) {
+		ctx->FillRect(WIDTH - 15, windowHeight - 10, 4, 8, olc::WHITE);
+		ctx->FillRect(WIDTH - 9, windowHeight - 10, 4, 8, olc::WHITE);
 	}
 }

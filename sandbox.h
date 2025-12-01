@@ -20,6 +20,7 @@ enum GravityType {
 typedef struct {
 	GravityType gravType;
 	olc::vf2d gravVec;
+	bool ticking;
 } Config;
 
 extern Config CONFIG;
@@ -29,11 +30,13 @@ typedef enum {
 	WATER,
 	BRICK,
 	ANAR,
+	GAS,
+	FIRE,
 	NONE
-} ParticleType;
+} Type;
 
 typedef struct {
-	ParticleType type;
+	Type type;
 	olc::vf2d velocity;
 	olc::vf2d delta;
 	olc::Pixel deco;
@@ -42,12 +45,12 @@ typedef struct {
 
 typedef struct {
 	olc::vi2d uiPos;
-	ParticleType type;
+	Type type;
 } UIParticleType;
 
 typedef struct {
 	std::vector<UIParticleType> types;
-	ParticleType selected;
+	Type selected;
 } UIContext;
 
 extern UIContext uiCtx;

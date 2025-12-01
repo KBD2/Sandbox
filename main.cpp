@@ -11,20 +11,26 @@
 
 Config CONFIG = {
 	.gravType = VECTOR,
-	.gravVec = olc::vf2d(0, 0.05f)
+	.gravVec = olc::vf2d(0, 0.05f),
+	.ticking = true
 };
+
+static std::shared_ptr<Simulation> simulation;
+
+std::shared_ptr<Simulation> getSimulation() {
+	return simulation;
+}
 
 UIContext uiCtx = {
 	.types = std::vector<UIParticleType>(),
-	.selected = ParticleType::DUST
+	.selected = Type::DUST
 };
 
 class Sandbox : public olc::PixelGameEngine {
 	area_t area = new ParticleState[HEIGHT][WIDTH];
 	float timeTillUpdate = 0;
-	Simulation sim = Simulation(this->area);
+	std::shared_ptr<Simulation> sim = std::make_shared<Simulation>(this->area);
 	Renderer renderer = Renderer(this->area);
-	bool ticking = true;
 
 public:
 	Sandbox() {
@@ -33,17 +39,26 @@ public:
 
 		for (int y = 0; y < HEIGHT; y++) {
 			for (int x = 0; x < WIDTH; x++) {
-				this->sim.resetParticle(olc::vi2d(x, y));
+				this->sim->resetParticle(olc::vi2d(x, y));
 			}
 		}
+
+		/*for (int y = 100; y < 150; y++) {
+			for (int x = 100; x < 150; x++) {
+				this->area[y][x].type = Type::FIRE;
+			}
+		}
+		this->ticking = false;*/
 
 		for (int type = 0; type < NONE; type++) {
 			UIParticleType uiType = {
 				.uiPos = olc::vi2d(3 + 20 * type, HEIGHT + 4),
-				.type = (ParticleType) type
+				.type = (Type) type
 			};
 			uiCtx.types.push_back(uiType);
 		}
+
+		simulation = this->sim;
 	}
 
 	bool OnUserCreate() override {
@@ -57,8 +72,8 @@ public:
 		this->timeTillUpdate -= fElapsedTime;
 		if (this->timeTillUpdate <= 0) {
 			this->timeTillUpdate = TICK_DURATION + this->timeTillUpdate;
-			if (ticking) {
-				this->sim.tick();
+			if (CONFIG.ticking) {
+				this->sim->tick();
 			}
 		}
 		handleInput();
@@ -89,10 +104,9 @@ private:
 							int ly = (float)lastY + my * t;
 							if (inBounds(lx, ly)) {
 								ParticleState* particle = &this->area[ly][lx];
-								if (particle->type == ParticleType::NONE) {
-									this->sim.resetParticle(olc::vi2d(lx, ly));
-									particle->type = uiCtx.selected;
-									if (getProps(particle->type)->state == State::POWDER && rand() % 2 == 0) {
+								if (particle->type == Type::NONE) {
+									this->sim->setParticle(olc::vi2d(lx, ly), uiCtx.selected);
+									if (getProps(uiCtx.selected)->state == State::S_POWDER && rand() % 2 == 0) {
 										particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
 									}
 								}
@@ -105,7 +119,7 @@ private:
 					lastX = -1;
 				}
 				if (GetMouse(1).bHeld) {
-					this->sim.resetParticle(olc::vi2d(x, y));
+					this->sim->resetParticle(olc::vi2d(x, y));
 				}
 			} else {
 				lastX = -1;
@@ -138,16 +152,16 @@ private:
 			if (GetKey(olc::Key::C).bPressed) {
 				for (int y = 0; y < HEIGHT; y++) {
 					for (int x = 0; x < WIDTH; x++) {
-						this->sim.resetParticle(olc::vi2d(x, y));
+						this->sim->resetParticle(olc::vi2d(x, y));
 					}
 				}
 			}
 			if (GetKey(olc::Key::SPACE).bPressed) {
-				this->ticking = !this->ticking;
+				CONFIG.ticking = !CONFIG.ticking;
 			}
 			if (GetKey(olc::Key::F).bPressed) {
-				this->ticking = false;
-				this->sim.tick();
+				CONFIG.ticking = false;
+				this->sim->tick();
 			}
 		}
 	}

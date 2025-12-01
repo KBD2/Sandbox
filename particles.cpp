@@ -2,9 +2,11 @@
 
 #include "particles.h"
 
-std::map<ParticleType, std::shared_ptr<ParticleProperties>> propertyLookup {
-	{ ParticleType::DUST, std::make_shared<ParticleDust>() },
-	{ ParticleType::WATER, std::make_shared<ParticleWater>() },
-	{ ParticleType::BRICK, std::make_shared<ParticleBrick>() },
-	{ ParticleType::ANAR, std::make_shared<ParticleAnar>() }
+std::map<Type, std::shared_ptr<ParticleProperties>> propertyLookup {
+	{ Type::DUST, std::make_shared<ParticleDust>() },
+	{ Type::WATER, std::make_shared<ParticleWater>() },
+	{ Type::BRICK, std::make_shared<ParticleBrick>() },
+	{ Type::ANAR, std::make_shared<ParticleAnar>() },
+	{ Type::GAS, std::make_shared<ParticleGas>() },
+	{ Type::FIRE, std::make_shared<ParticleFire>() }
 };

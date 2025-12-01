@@ -9,11 +9,16 @@ public:
 	Simulation(area_t area);
 	void tick();
 	void resetParticle(olc::vi2d pos);
+	void setParticle(olc::vi2d pos, Type type);
 
 private:
-	olc::vi2d updateMovableParticle(olc::vi2d pos);
+	olc::vi2d updatePhysicsParticle(olc::vi2d pos);
+	olc::vi2d updatePowder(olc::vi2d pos);
+	olc::vi2d updateLiquid(olc::vi2d pos);
+	olc::vi2d updateGas(olc::vi2d pos);
 	olc::vf2d getLocalGravity(olc::vi2d pos);
 	ParticleState* get(olc::vi2d pos);
 	bool tryPlace(olc::vi2d pos, olc::vi2d newPos);
-	bool surrounded(olc::vi2d pos);
 };
+
+std::shared_ptr<Simulation> getSimulation();

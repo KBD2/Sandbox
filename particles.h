@@ -6,36 +6,53 @@
 #include "olcPixelGameEngine.h"
 #include "sandbox.h"
 #include "renderer.h"
+#include "simulation.h"
 
 enum State {
-	SOLID,
-	POWDER,
-	LIQUID,
-	GAS
+	S_SOLID,
+	S_POWDER,
+	S_LIQUID,
+	S_GAS
 };
 
 class ParticleProperties {
 public:
 	std::string name = "UNWN";
-	State state = State::SOLID;
+	State state = State::S_SOLID;
+
 	float mass = 0;
 	float frictionCoeff = 0;
+	uint8_t reposeAngle = 0;
+
+	bool flammable = false;
+
 	olc::Pixel colour = olc::MAGENTA;
+
+	virtual void init(ParticleState& state) {
+	}
+	virtual void update(olc::vi2d pos, ParticleState& state, area_t area) {
+	}
 	virtual olc::Pixel render(ParticleState& state) {
 		return this->colour;
 	};
-	virtual void update(ParticleState& state, area_t area) {
-	}
 };
+
+extern std::map<Type, std::shared_ptr<ParticleProperties>> propertyLookup;
+
+inline std::shared_ptr<ParticleProperties> getProps(Type type) {
+	return propertyLookup[type];
+}
 
 class ParticleDust : public ParticleProperties {
 public:
 	ParticleDust() {
 		this->name = "DUST";
-		this->state = State::POWDER;
+		this->state = State::S_POWDER;
 		this->mass = 0.4f;
 		this->frictionCoeff = 0.5f;
+		this->reposeAngle = 45;
 		this->colour = olc::Pixel(0xff, 0xe0, 0xa0);
+		this->flammable = true;
 	}
 };
 
@@ -43,9 +60,10 @@ class ParticleWater : public ParticleProperties {
 public:
 	ParticleWater() {
 		this->name = "WATR";
-		this->state = State::LIQUID;
+		this->state = State::S_LIQUID;
 		this->mass = 1;
 		this->frictionCoeff = 0.95f;
+		this->reposeAngle = 0;
 		this->colour = olc::Pixel(0x00, 0x00, 0xff);
 	}
 
@@ -58,7 +76,7 @@ public:
 		return this->colour;
 	}
 
-	void update(ParticleState& state, area_t area) override {
+	void update(olc::vi2d pos, ParticleState& state, area_t area) override {
 		if (state.velocity.mag2() > 1) {
 			state.data[0] = std::min(state.data[0] + 10, 1000);
 		} else {
@@ -71,7 +89,7 @@ class ParticleBrick : public ParticleProperties {
 public:
 	ParticleBrick() {
 		this->name = "BRCK";
-		this->state = State::SOLID;
+		this->state = State::S_SOLID;
 		this->colour = olc::Pixel(0xaa, 0xaa, 0xaa);
 	}
 };
@@ -80,15 +98,60 @@ class ParticleAnar : public ParticleProperties {
 public:
 	ParticleAnar() {
 		this->name = "ANAR";
-		this->state = State::POWDER;
+		this->state = State::S_POWDER;
 		this->mass = -0.4f;
 		this->frictionCoeff = 0.5f;
 		this->colour = olc::Pixel(0xff, 0xff, 0xff);
 	}
 };
 
-extern std::map<ParticleType, std::shared_ptr<ParticleProperties>> propertyLookup;
+class ParticleGas : public ParticleProperties {
+public:
+	ParticleGas() {
+		this->name = "GAS";
+		this->state = State::S_GAS;
+		this->mass = 0.1f;
+		this->frictionCoeff = 0.95f;
+		this->colour = olc::Pixel(0xe4, 0xff, 0x35);
+		this->flammable = true;
+	}
+};
 
-inline std::shared_ptr<ParticleProperties> getProps(ParticleType type) {
-	return propertyLookup[type];
-}
+class ParticleFire : public ParticleProperties {
+public:
+	ParticleFire() {
+		this->name = "FIRE";
+		this->state = State::S_GAS;
+		this->mass = -0.3f;
+		this->frictionCoeff = 0.95f;
+		this->colour = olc::Pixel(0xff, 0x48, 0x30);
+	}
+
+	void init(ParticleState& particle) override {
+		particle.data[0] = random() * 100 + 100;
+	}
+
+	void update(olc::vi2d pos, ParticleState& particle, area_t area) override {
+		for (int dy = -1; dy <= 1; dy++) {
+			for (int dx = -1; dx <= 1; dx++) {
+				if (dx == 0 && dy == 0) continue;
+				olc::vi2d checkPos = pos + olc::vi2d(dx, dy);
+				if (inBounds(checkPos)) {
+					ParticleState& state = area[checkPos.y][checkPos.x];
+					if (state.type != Type::NONE && getProps(area[checkPos.y][checkPos.x].type)->flammable) {
+						getSimulation()->setParticle(checkPos, Type::FIRE);
+					}
+				}
+			}
+		}
+		if (--particle.data[0] == 0) {
+			getSimulation()->resetParticle(pos);
+		}
+	}
+
+	olc::Pixel render(ParticleState& state) override {
+		olc::Pixel brightest = olc::Pixel(0xff, 0x00, 0x00);
+		olc::Pixel dimmest = olc::Pixel(0x00, 0x00, 0x00);
+		return lerpPixel(dimmest, brightest, (float)state.data[0] / 100);
+	}
+};
