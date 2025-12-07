@@ -20,19 +20,21 @@ public:
 	std::string name = "UNWN";
 	State state = State::S_SOLID;
 
-	float mass = 0;
-	float frictionCoeff = 0;
+	double mass = 0;
+	double frictionCoeff = 0;
 	uint8_t reposeAngle = 0;
 
 	bool flammable = false;
 
+	double dispersion = 0;
+
 	olc::Pixel colour = olc::MAGENTA;
 
-	virtual void init(ParticleState& state) {
+	virtual void init(ParticleState* particle) {
 	}
-	virtual void update(olc::vi2d pos, ParticleState& state, area_t area) {
+	virtual void update(ParticleState* particle) {
 	}
-	virtual olc::Pixel render(ParticleState& state) {
+	virtual olc::Pixel render(ParticleState* particle) {
 		return this->colour;
 	};
 };
@@ -48,8 +50,8 @@ public:
 	ParticleDust() {
 		this->name = "DUST";
 		this->state = State::S_POWDER;
-		this->mass = 0.4f;
-		this->frictionCoeff = 0.5f;
+		this->mass = 0.4;
+		this->frictionCoeff = 0.5;
 		this->reposeAngle = 45;
 		this->colour = olc::Pixel(0xff, 0xe0, 0xa0);
 		this->flammable = true;
@@ -62,25 +64,25 @@ public:
 		this->name = "WATR";
 		this->state = State::S_LIQUID;
 		this->mass = 1;
-		this->frictionCoeff = 0.95f;
+		this->frictionCoeff = 0.95;
 		this->reposeAngle = 0;
 		this->colour = olc::Pixel(0x00, 0x00, 0xff);
 	}
 
-	olc::Pixel render(ParticleState& state) override {
-		if (state.data[0] > 0) {
+	olc::Pixel render(ParticleState* particle) override {
+		if (particle->data[0] > 0) {
 			olc::Pixel brightest = olc::Pixel(0x88, 0x88, 0xff);
 			olc::Pixel dimmest = olc::Pixel(0x55, 0x55, 0xff);
-			return lerpPixel(this->colour, lerpPixel(dimmest, brightest, random()), (float)state.data[0] / 1000);
+			return lerpPixel(this->colour, lerpPixel(dimmest, brightest, random()), (float)particle->data[0] / 1000);
 		}
 		return this->colour;
 	}
 
-	void update(olc::vi2d pos, ParticleState& state, area_t area) override {
-		if (state.velocity.mag2() > 1) {
-			state.data[0] = std::min(state.data[0] + 10, 1000);
+	void update(ParticleState* state) override {
+		if (state->velocity.mag2() > 1) {
+			state->data[0] = std::min(state->data[0] + 10, 1000);
 		} else {
-			state.data[0] = std::max(state.data[0] - 20, 0);
+			state->data[0] = std::max(state->data[0] - 20, 0);
 		}
 	}
 };
@@ -99,7 +101,7 @@ public:
 	ParticleAnar() {
 		this->name = "ANAR";
 		this->state = State::S_POWDER;
-		this->mass = -0.4f;
+		this->mass = -0.4;
 		this->frictionCoeff = 0.5f;
 		this->colour = olc::Pixel(0xff, 0xff, 0xff);
 	}
@@ -110,10 +112,11 @@ public:
 	ParticleGas() {
 		this->name = "GAS";
 		this->state = State::S_GAS;
-		this->mass = 0.1f;
+		this->mass = 0.0;
 		this->frictionCoeff = 0.95f;
 		this->colour = olc::Pixel(0xe4, 0xff, 0x35);
 		this->flammable = true;
+		this->dispersion = 1;
 	}
 };
 
@@ -122,36 +125,40 @@ public:
 	ParticleFire() {
 		this->name = "FIRE";
 		this->state = State::S_GAS;
-		this->mass = -0.3f;
+		this->mass = -0.3;
 		this->frictionCoeff = 0.95f;
 		this->colour = olc::Pixel(0xff, 0x48, 0x30);
+		this->dispersion = 0.1;
 	}
 
-	void init(ParticleState& particle) override {
-		particle.data[0] = random() * 100 + 100;
+	void init(ParticleState* particle) override {
+		particle->data[0] = random() * 100 + 100;
 	}
 
-	void update(olc::vi2d pos, ParticleState& particle, area_t area) override {
+	void update(ParticleState* particle) override {
+		olc::vi2d pos = particle->pos;
 		for (int dy = -1; dy <= 1; dy++) {
 			for (int dx = -1; dx <= 1; dx++) {
 				if (dx == 0 && dy == 0) continue;
 				olc::vi2d checkPos = pos + olc::vi2d(dx, dy);
 				if (inBounds(checkPos)) {
-					ParticleState& state = area[checkPos.y][checkPos.x];
-					if (state.type != Type::NONE && getProps(area[checkPos.y][checkPos.x].type)->flammable) {
-						getSimulation()->setParticle(checkPos, Type::FIRE);
+					ParticleState* check = partGrid[checkPos.y][checkPos.x];
+					if (check == nullptr) continue;
+					if (check->type != Type::NONE && getProps(check->type)->flammable) {
+						getSimulation()->remove(check);
+						getSimulation()->add(checkPos, Type::FIRE);
 					}
 				}
 			}
 		}
-		if (--particle.data[0] == 0) {
-			getSimulation()->resetParticle(pos);
+		if (--particle->data[0] == 0) {
+			getSimulation()->remove(particle);
 		}
 	}
 
-	olc::Pixel render(ParticleState& state) override {
+	olc::Pixel render(ParticleState* particle) override {
 		olc::Pixel brightest = olc::Pixel(0xff, 0x00, 0x00);
 		olc::Pixel dimmest = olc::Pixel(0x00, 0x00, 0x00);
-		return lerpPixel(dimmest, brightest, (float)state.data[0] / 100);
+		return lerpPixel(dimmest, brightest, (float)particle->data[0] / 100);
 	}
 };

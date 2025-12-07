@@ -5,11 +5,14 @@
 
 #include "olcPixelGameEngine.h"
 
-static constexpr int WIDTH = 320;
-static constexpr int HEIGHT = 240;
-static constexpr int PIX_SIZE = 3;
+static constexpr int WIDTH = 640;
+static constexpr int HEIGHT = 480;
+static constexpr int PIX_SIZE = 2;
+static constexpr int PIX_X = WIDTH / PIX_SIZE;
+static constexpr int PIX_Y = HEIGHT / PIX_SIZE;
 static constexpr float PI = 3.141592f;
 static constexpr float TICK_DURATION = 1.0f / 60.0f;
+static constexpr int MAX_PARTS = 100000;
 
 enum GravityType {
 	VECTOR,
@@ -37,10 +40,12 @@ typedef enum {
 
 typedef struct {
 	Type type;
+	olc::vi2d pos;
 	olc::vf2d velocity;
 	olc::vf2d delta;
 	olc::Pixel deco;
 	int32_t data[10];
+	bool dead;
 } ParticleState;
 
 typedef struct {
@@ -55,7 +60,11 @@ typedef struct {
 
 extern UIContext uiCtx;
 
-typedef ParticleState(*area_t)[WIDTH];
+typedef ParticleState*(*area_t)[PIX_X];
+
+extern std::vector<ParticleState*> partArr;
+extern area_t partGrid;
+
 
 static float random() {
 	static std::random_device rd;
@@ -69,9 +78,9 @@ static inline float toRads(float degrees) {
 }
 
 static bool inBounds(int x, int y) {
-	return x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT;
+	return x >= 0 && x < PIX_X && y >= 0 && y < PIX_Y;
 }
 
 static bool inBounds(olc::vi2d pos) {
-	return pos.x >= 0 && pos.x < WIDTH && pos.y >= 0 && pos.y < HEIGHT;
+	return pos.x >= 0 && pos.x < PIX_X && pos.y >= 0 && pos.y < PIX_Y;
 }

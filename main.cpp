@@ -15,6 +15,9 @@ Config CONFIG = {
 	.ticking = true
 };
 
+std::vector<ParticleState*> partArr = {};
+area_t partGrid = new ParticleState*[PIX_Y][PIX_X];
+
 static std::shared_ptr<Simulation> simulation;
 
 std::shared_ptr<Simulation> getSimulation() {
@@ -27,28 +30,27 @@ UIContext uiCtx = {
 };
 
 class Sandbox : public olc::PixelGameEngine {
-	area_t area = new ParticleState[HEIGHT][WIDTH];
 	float timeTillUpdate = 0;
-	std::shared_ptr<Simulation> sim = std::make_shared<Simulation>(this->area);
-	Renderer renderer = Renderer(this->area);
+	std::shared_ptr<Simulation> sim = std::make_shared<Simulation>();
+	Renderer renderer = Renderer();
 
 public:
 	Sandbox() {
 		this->sAppName = "Sandbox";
 		std::srand(std::time(NULL));
 
-		for (int y = 0; y < HEIGHT; y++) {
-			for (int x = 0; x < WIDTH; x++) {
-				this->sim->resetParticle(olc::vi2d(x, y));
+		for (int y = 0; y < PIX_Y; y++) {
+			for (int x = 0; x < PIX_X; x++) {
+				partGrid[y][x] = nullptr;
 			}
 		}
 
-		/*for (int y = 100; y < 150; y++) {
-			for (int x = 100; x < 150; x++) {
-				this->area[y][x].type = Type::FIRE;
+		/*for (int y = 0; y < 50; y++) {
+			for (int x = 0; x < 50; x++) {
+				this->sim->add(olc::vi2d(x, y), Type::DUST);
 			}
 		}
-		this->ticking = false;*/
+		CONFIG.ticking = false;*/
 
 		for (int type = 0; type < NONE; type++) {
 			UIParticleType uiType = {
@@ -71,7 +73,7 @@ public:
 		bool update = false;
 		this->timeTillUpdate -= fElapsedTime;
 		if (this->timeTillUpdate <= 0) {
-			this->timeTillUpdate = TICK_DURATION + this->timeTillUpdate;
+			this->timeTillUpdate = std::max(0.0f, TICK_DURATION + this->timeTillUpdate);
 			if (CONFIG.ticking) {
 				this->sim->tick();
 			}
@@ -87,12 +89,14 @@ private:
 		if (IsFocused()) {
 			int x = GetMouseX();
 			int y = GetMouseY();
-			if (inBounds(x, y)) {
-				if (GetMouse(0).bHeld) {
+			int pixX = x / PIX_SIZE;
+			int pixY = y / PIX_SIZE;
+			if (inBounds(pixX, pixY)) {
+				if (GetMouse(0).bHeld || GetMouse(1).bHeld) {
 					if (lastX != -1) {
 
-						int dx = x - lastX;
-						int dy = y - lastY;
+						int dx = pixX - lastX;
+						int dy = pixY - lastY;
 
 						float length = std::max(1.0f, std::sqrtf(std::pow(dx, 2) + std::pow(dy, 2)));
 
@@ -103,23 +107,22 @@ private:
 							int lx = (float)lastX + mx * t;
 							int ly = (float)lastY + my * t;
 							if (inBounds(lx, ly)) {
-								ParticleState* particle = &this->area[ly][lx];
-								if (particle->type == Type::NONE) {
-									this->sim->setParticle(olc::vi2d(lx, ly), uiCtx.selected);
+								ParticleState* particle = partGrid[ly][lx];
+								if (GetMouse(0).bHeld && particle == nullptr) {
+									particle = this->sim->add(olc::vi2d(lx, ly), uiCtx.selected);
 									if (getProps(uiCtx.selected)->state == State::S_POWDER && rand() % 2 == 0) {
 										particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
 									}
+								} else if (GetMouse(1).bHeld && particle != nullptr) {
+									this->sim->remove(particle);
 								}
 							}
 						}
 					}
-					lastX = x;
-					lastY = y;
+					lastX = pixX;
+					lastY = pixY;
 				} else {
 					lastX = -1;
-				}
-				if (GetMouse(1).bHeld) {
-					this->sim->resetParticle(olc::vi2d(x, y));
 				}
 			} else {
 				lastX = -1;
@@ -150,10 +153,8 @@ private:
 				}
 			}
 			if (GetKey(olc::Key::C).bPressed) {
-				for (int y = 0; y < HEIGHT; y++) {
-					for (int x = 0; x < WIDTH; x++) {
-						this->sim->resetParticle(olc::vi2d(x, y));
-					}
+				while (partArr.size() > 0) {
+					this->sim->remove(partArr.back());
 				}
 			}
 			if (GetKey(olc::Key::SPACE).bPressed) {
@@ -169,7 +170,7 @@ private:
 
 int main() {
 	Sandbox game;
-	if (game.Construct(WIDTH, HEIGHT + 20, PIX_SIZE, PIX_SIZE)) {
+	if (game.Construct(WIDTH, HEIGHT + 20, 1, 1)) {
 		game.Start();
 	}
 	return 0;

@@ -3,22 +3,27 @@
 #include "sandbox.h"
 
 class Simulation {
-	area_t area;
-	bool (*updated)[WIDTH];
 public:
-	Simulation(area_t area);
+	Simulation() {
+		this->particlePool = new ParticleState[MAX_PARTS];
+		for (int i = 0; i < MAX_PARTS; i++) {
+			this->particlePool[i].dead = true;
+		}
+	}
+
 	void tick();
-	void resetParticle(olc::vi2d pos);
-	void setParticle(olc::vi2d pos, Type type);
+	void remove(ParticleState* state);
+	ParticleState* add(olc::vi2d pos, Type type);
 
 private:
-	olc::vi2d updatePhysicsParticle(olc::vi2d pos);
-	olc::vi2d updatePowder(olc::vi2d pos);
-	olc::vi2d updateLiquid(olc::vi2d pos);
-	olc::vi2d updateGas(olc::vi2d pos);
+	ParticleState* particlePool;
+
+	void updatePhysicsParticle(ParticleState* particle);
+	void updatePowder(ParticleState* particle);
+	void updateLiquid(ParticleState* particle);
+	void updateGas(ParticleState* particle);
 	olc::vf2d getLocalGravity(olc::vi2d pos);
-	ParticleState* get(olc::vi2d pos);
-	bool tryPlace(olc::vi2d pos, olc::vi2d newPos);
+	bool tryPlace(ParticleState* particle, olc::vi2d newPos);
 };
 
 std::shared_ptr<Simulation> getSimulation();

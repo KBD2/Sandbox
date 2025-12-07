@@ -2,17 +2,13 @@
 #include "particles.h"
 #include "renderer.h"
 
-Renderer::Renderer(area_t area) {
-	this->area = area;
-}
-
 void Renderer::renderArea(olc::PixelGameEngine* ctx) {
 	ctx->FillRect(0, 0, WIDTH, HEIGHT, olc::BLANK);
-	for (int y = 0; y < HEIGHT; y++) {
-		for (int x = 0; x < WIDTH; x++) {
-			ParticleState& particle = this->area[y][x];
-			if (particle.type != Type::NONE) {
-				ctx->Draw(x, y, calculatePixel(particle));
+	for (int y = 0; y < PIX_Y; y++) {
+		for (int x = 0; x < PIX_X; x++) {
+			ParticleState* particle = partGrid[y][x];
+			if (particle != nullptr) {
+				ctx->FillRect(x * PIX_SIZE, y * PIX_SIZE, PIX_SIZE, PIX_SIZE, calculatePixel(particle));
 			}
 		}
 	}
@@ -32,10 +28,10 @@ olc::Pixel lerpPixel(olc::Pixel a, olc::Pixel b, float t) {
 	return composited;
 }
 
-olc::Pixel Renderer::calculatePixel(ParticleState& state) {
-	std::shared_ptr<ParticleProperties> properties = propertyLookup[state.type];
-	olc::Pixel colour = properties->render(state);
-	olc::Pixel& deco = state.deco;
+olc::Pixel Renderer::calculatePixel(ParticleState* particle) {
+	std::shared_ptr<ParticleProperties> properties = propertyLookup[particle->type];
+	olc::Pixel colour = properties->render(particle);
+	olc::Pixel& deco = particle->deco;
 	olc::Pixel composited;
 	composited.a = 0xff;
 	composited.r = lerpCompAlpha(colour.r, deco.r, deco.a);
