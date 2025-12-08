@@ -54,7 +54,7 @@ public:
 
 		for (int type = 0; type < NONE; type++) {
 			UIParticleType uiType = {
-				.uiPos = olc::vi2d(3 + 20 * type, HEIGHT + 4),
+				.uiPos = olc::vi2d(4 + 40 * type, HEIGHT + 8),
 				.type = (Type) type
 			};
 			uiCtx.types.push_back(uiType);
@@ -110,7 +110,7 @@ private:
 								ParticleState* particle = partGrid[ly][lx];
 								if (GetMouse(0).bHeld && particle == nullptr) {
 									particle = this->sim->add(olc::vi2d(lx, ly), uiCtx.selected);
-									if (getProps(uiCtx.selected)->state == State::S_POWDER && rand() % 2 == 0) {
+									if (particle != nullptr && getProps(uiCtx.selected)->state == State::S_POWDER && rand() % 2 == 0) {
 										particle->deco = olc::Pixel(rand() % 256, rand() % 256, rand() % 256, rand() % 20);
 									}
 								} else if (GetMouse(1).bHeld && particle != nullptr) {
@@ -130,7 +130,7 @@ private:
 					for (auto& type : uiCtx.types) {
 						int buttonX = type.uiPos.x;
 						int buttonY = type.uiPos.y;
-						if (x >= buttonX && x < buttonX + 15 && y >= buttonY && y < buttonY + 10) {
+						if (x >= buttonX && x < buttonX + 30 && y >= buttonY && y < buttonY + 20) {
 							uiCtx.selected = type.type;
 						}
 					}
@@ -170,7 +170,7 @@ private:
 
 int main() {
 	Sandbox game;
-	if (game.Construct(WIDTH, HEIGHT + 20, 1, 1)) {
+	if (game.Construct(WIDTH, HEIGHT + 40, 1, 1)) {
 		game.Start();
 	}
 	return 0;

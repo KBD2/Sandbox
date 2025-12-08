@@ -195,23 +195,28 @@ void Simulation::remove(ParticleState* state) {
 }
 
 ParticleState* Simulation::add(olc::vi2d pos, Type type) {
+	static int idx = 0;
+	if (partArr.size() == MAX_PARTS) {
+		return nullptr;
+	}
 	for (int i = 0; i < MAX_PARTS; i++) {
-		if (this->particlePool[i].dead) {
-			ParticleState* state = &this->particlePool[i];
-			state->type = type;
-			state->deco = olc::Pixel(0, 0, 0, 0);
-			state->pos = pos;
-			state->dead = false;
-			state->velocity = olc::vf2d();
-			state->delta = olc::vf2d();
-			for (int i = 0; i < 10; i++) {
-				state->data[i] = 0;
-			}
+		if (this->particlePool[idx].dead) {
+			ParticleState* state = &this->particlePool[idx];
+			*state = {
+				.type = type,
+				.pos = pos,
+				.velocity = olc::vf2d(),
+				.delta = olc::vf2d(),
+				.deco = olc::Pixel(0, 0, 0, 0),
+				.dead = false
+			};
+			std::memset(state->data, 0, 10);
 			getProps(type)->init(state);
 			partArr.push_back(state);
 			partGrid[pos.y][pos.x] = state;
 			return state;
 		}
+		idx = (idx + 1) % MAX_PARTS;
 	}
 	return nullptr;
 }

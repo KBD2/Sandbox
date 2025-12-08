@@ -43,16 +43,17 @@ olc::Pixel Renderer::calculatePixel(ParticleState* particle) {
 void Renderer::renderUI(olc::PixelGameEngine* ctx) {
 	int windowHeight = ctx->GetDrawTargetHeight();
 	ctx->FillRect(0, HEIGHT, WIDTH, windowHeight - HEIGHT + 1, olc::BLANK);
-	ctx->DrawLine(olc::vi2d(0, HEIGHT), olc::vi2d(WIDTH - 1, HEIGHT), olc::GREY);
+	ctx->FillRect(0, HEIGHT, WIDTH, 4, olc::GREY);
 	for (auto& type : uiCtx.types) {
 		std::shared_ptr<ParticleProperties> properties = propertyLookup[type.type];
-		ctx->FillRect(type.uiPos, olc::vi2d(15, 10), properties->colour);
+		ctx->FillRect(type.uiPos, olc::vi2d(30, 20), properties->colour);
 		if (type.type == uiCtx.selected) {
-			ctx->DrawRect(olc::vi2d(type.uiPos.x - 1, type.uiPos.y - 1), olc::vi2d(16, 11), olc::RED);
+			ctx->DrawRect(olc::vi2d(type.uiPos.x - 1, type.uiPos.y - 1), olc::vi2d(31, 21), olc::RED);
+			ctx->DrawRect(olc::vi2d(type.uiPos.x - 2, type.uiPos.y - 2), olc::vi2d(33, 23), olc::RED);
 		}
 	}
 	if (!CONFIG.ticking) {
-		ctx->FillRect(WIDTH - 15, windowHeight - 10, 4, 8, olc::WHITE);
-		ctx->FillRect(WIDTH - 9, windowHeight - 10, 4, 8, olc::WHITE);
+		ctx->FillRect(WIDTH - 15, windowHeight - 20, 4, 14, olc::WHITE);
+		ctx->FillRect(WIDTH - 9, windowHeight - 20, 4, 14, olc::WHITE);
 	}
 }

@@ -5,7 +5,7 @@
 class Simulation {
 public:
 	Simulation() {
-		this->particlePool = new ParticleState[MAX_PARTS];
+		this->particlePool = new ParticleState[MAX_PARTS * 5];
 		for (int i = 0; i < MAX_PARTS; i++) {
 			this->particlePool[i].dead = true;
 		}
